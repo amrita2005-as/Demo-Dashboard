@@ -199,15 +199,29 @@ if 'employees' not in st.session_state:
         "Department": ["Engineering", "Sales", "Marketing", "Finance", "HR", "Operations", "IT", "Customer Success"],
         "Position": ["Senior Engineer", "Sales Manager", "Marketing Lead", "Financial Analyst", "HR Manager", "Operations Coordinator", "IT Specialist", "CS Manager"],
         "Priority Level": ["normal", "high", "high", "normal", "high", "normal", "normal", "high"],  # Based on position
-        "Status": ["Active", "Active", "Vacation", "Active", "Active", "Vacation", "Active", "Active"],
-        "Vacation Start": [None, None, "2026-01-28", None, None, "2026-01-30", None, None],
-        "Vacation End": [None, None, "2026-02-05", None, None, "2026-02-03", None, None],
-        "Replacement": [None, None, "Mike Ross", None, None, "Sarah Chen", None, None],
         "Email": ["sarah.chen@company.com", "mike.ross@company.com", "emma.stone@company.com", "john.doe@company.com", 
                   "lisa.wang@company.com", "alex.kumar@company.com", "tom.brady@company.com", "sophie.turner@company.com"],
         "Phone": ["+971-50-123-4567", "+971-50-234-5678", "+971-50-345-6789", "+971-50-456-7890",
                   "+971-50-567-8901", "+971-50-678-9012", "+971-50-789-0123", "+971-50-890-1234"],
         "Join Date": ["2023-01-15", "2022-06-10", "2023-03-20", "2021-11-05", "2022-09-12", "2023-07-01", "2022-02-28", "2023-05-18"]
+    })
+
+if 'kitchen_staff_details' not in st.session_state:
+    st.session_state.kitchen_staff_details = pd.DataFrame({
+        "Staff ID": ["KS001", "KS002", "KS003", "KS004", "KS005", "KS006"],
+        "Name": ["Maria Santos", "John Martinez", "Chen Wei", "Alex Rodriguez", "Fatima Ahmed", "David Kumar"],
+        "Role": ["Head Chef", "Senior Cook", "Cook", "Cook", "Kitchen Assistant", "Kitchen Assistant"],
+        "Shift": ["Morning (7AM-3PM)", "Morning (7AM-3PM)", "Afternoon (12PM-8PM)", "Afternoon (12PM-8PM)", "Morning (7AM-3PM)", "Afternoon (12PM-8PM)"],
+        "Status": ["Active", "Active", "On Leave", "Active", "Active", "On Leave"],
+        "Leave Start": [None, None, "2026-02-01", None, None, "2026-01-29"],
+        "Leave End": [None, None, "2026-02-07", None, None, "2026-02-02"],
+        "Coverage By": [None, None, "Alex Rodriguez", None, None, "Fatima Ahmed"],
+        "Email": ["maria.santos@kitchen.com", "john.martinez@kitchen.com", "chen.wei@kitchen.com", 
+                  "alex.rodriguez@kitchen.com", "fatima.ahmed@kitchen.com", "david.kumar@kitchen.com"],
+        "Phone": ["+971-52-111-2222", "+971-52-222-3333", "+971-52-333-4444", 
+                  "+971-52-444-5555", "+971-52-555-6666", "+971-52-666-7777"],
+        "Join Date": ["2021-03-15", "2022-01-10", "2022-08-20", "2023-02-05", "2023-06-12", "2023-09-01"],
+        "Performance Rating": [4.9, 4.7, 4.5, 4.6, 4.3, 4.4]
     })
 
 if 'inventory' not in st.session_state:
@@ -708,7 +722,7 @@ if st.session_state.user_role == "employee":
                     <p><strong>Department:</strong> {emp['Department']}</p>
                     <p><strong>Position:</strong> {emp['Position']}</p>
                     <p><strong>Join Date:</strong> {emp['Join Date']}</p>
-                    <p><strong>Status:</strong> {create_status_badge(emp['Status'])}</p>
+                    <p><strong>Employment Status:</strong> ✅ Active</p>
                     <p><strong>Order Priority:</strong> {priority_badge}</p>
                 </div>
                 """, unsafe_allow_html=True)
@@ -1113,116 +1127,159 @@ else:
         display_orders = st.session_state.orders[['Order ID', 'Item', 'Employee', 'Status', 'Priority', 'ETA (min)', 'Timestamp', 'Assigned Staff']].copy()
         st.dataframe(display_orders, use_container_width=True, hide_index=True)
     
-    # TAB 2: EMPLOYEE MANAGEMENT
+    # TAB 2: EMPLOYEE MANAGEMENT (Kitchen Staff)
     with tab2:
-        st.subheader("Employee Directory & Management")
+        st.subheader("Kitchen Staff Management & Scheduling")
         
         col1, col2, col3, col4 = st.columns(4)
         
-        total_employees = len(st.session_state.employees)
-        active_employees = len(st.session_state.employees[st.session_state.employees['Status'] == 'Active'])
-        on_vacation = len(st.session_state.employees[st.session_state.employees['Status'] == 'Vacation'])
+        total_staff = len(st.session_state.kitchen_staff_details)
+        active_staff = len(st.session_state.kitchen_staff_details[st.session_state.kitchen_staff_details['Status'] == 'Active'])
+        on_leave = len(st.session_state.kitchen_staff_details[st.session_state.kitchen_staff_details['Status'] == 'On Leave'])
         
         with col1:
-            st.metric("Total Employees", total_employees)
+            st.metric("Total Kitchen Staff", total_staff)
         with col2:
-            st.metric("Active", active_employees, delta=f"{(active_employees/total_employees*100):.0f}%")
+            st.metric("Active Today", active_staff, delta=f"{(active_staff/total_staff*100):.0f}%")
         with col3:
-            st.metric("On Vacation", on_vacation)
+            st.metric("On Leave", on_leave)
         with col4:
-            st.metric("Departments", st.session_state.employees['Department'].nunique())
+            avg_rating = st.session_state.kitchen_staff_details['Performance Rating'].mean()
+            st.metric("Avg Performance", f"{avg_rating:.1f}/5.0")
         
         st.markdown("---")
         
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            dept_filter = st.multiselect(
-                "Filter by Department",
-                options=st.session_state.employees['Department'].unique(),
-                default=st.session_state.employees['Department'].unique()
+            role_filter = st.multiselect(
+                "Filter by Role",
+                options=st.session_state.kitchen_staff_details['Role'].unique(),
+                default=st.session_state.kitchen_staff_details['Role'].unique()
             )
         
         with col2:
-            status_filter_emp = st.multiselect(
+            status_filter_staff = st.multiselect(
                 "Filter by Status",
-                options=['Active', 'Vacation'],
-                default=['Active', 'Vacation']
+                options=['Active', 'On Leave'],
+                default=['Active', 'On Leave']
             )
         
         with col3:
-            search = st.text_input("Search by Name", placeholder="Enter employee name...")
+            shift_filter = st.multiselect(
+                "Filter by Shift",
+                options=st.session_state.kitchen_staff_details['Shift'].unique(),
+                default=st.session_state.kitchen_staff_details['Shift'].unique()
+            )
         
-        filtered_employees = st.session_state.employees[
-            (st.session_state.employees['Department'].isin(dept_filter)) &
-            (st.session_state.employees['Status'].isin(status_filter_emp))
+        filtered_staff = st.session_state.kitchen_staff_details[
+            (st.session_state.kitchen_staff_details['Role'].isin(role_filter)) &
+            (st.session_state.kitchen_staff_details['Status'].isin(status_filter_staff)) &
+            (st.session_state.kitchen_staff_details['Shift'].isin(shift_filter))
         ]
-        
-        if search:
-            filtered_employees = filtered_employees[filtered_employees['Name'].str.contains(search, case=False)]
         
         st.markdown("---")
         
-        for idx, emp in filtered_employees.iterrows():
-            status_display = f"**{emp['Status']}**" if emp['Status'] == 'Active' else f"⚠️ **{emp['Status']}**"
-            with st.expander(f"👤 {emp['Name']} - {emp['Position']} | {status_display}", expanded=False):
+        st.subheader("Kitchen Staff Directory")
+        
+        for idx, staff in filtered_staff.iterrows():
+            status_display = f"✅ **{staff['Status']}**" if staff['Status'] == 'Active' else f"🔴 **{staff['Status']}**"
+            with st.expander(f"👨‍🍳 {staff['Name']} - {staff['Role']} | {status_display}", expanded=False):
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
                     st.markdown(f"""
-                    **Employee ID:** {emp['Employee ID']}  
-                    **Department:** {emp['Department']}  
-                    **Position:** {emp['Position']}  
-                    **Join Date:** {emp['Join Date']}
+                    **Staff ID:** {staff['Staff ID']}  
+                    **Role:** {staff['Role']}  
+                    **Shift:** {staff['Shift']}  
+                    **Join Date:** {staff['Join Date']}
                     """)
                 
                 with col2:
                     st.markdown(f"""
-                    **Email:** {emp['Email']}  
-                    **Phone:** {emp['Phone']}  
-                    **Status:** {emp['Status']}
+                    **Email:** {staff['Email']}  
+                    **Phone:** {staff['Phone']}  
+                    **Current Status:** {staff['Status']}  
+                    **Performance:** {'⭐' * int(staff['Performance Rating'])} {staff['Performance Rating']}/5.0
                     """)
                 
                 with col3:
-                    if emp['Status'] == 'Vacation':
+                    if staff['Status'] == 'On Leave':
                         st.markdown(f"""
                         <div class="alert-box alert-warning" style="margin: 0;">
-                            <div class="alert-title">ON VACATION</div>
+                            <div class="alert-title">ON LEAVE</div>
                             <div>
-                            <strong>From:</strong> {emp['Vacation Start']}<br>
-                            <strong>Until:</strong> {emp['Vacation End']}<br>
-                            <strong>Replacement:</strong> {emp['Replacement']}
+                            <strong>From:</strong> {staff['Leave Start']}<br>
+                            <strong>Until:</strong> {staff['Leave End']}<br>
+                            <strong>Coverage:</strong> {staff['Coverage By']}
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
                         
-                        days_left = (pd.to_datetime(emp['Vacation End']) - pd.to_datetime(datetime.now().date())).days
+                        days_left = (pd.to_datetime(staff['Leave End']) - pd.to_datetime(datetime.now().date())).days
                         st.info(f"Returns in {days_left} days")
                     else:
-                        st.success("Currently Active")
+                        st.success("Currently On Duty")
+                        
+                        # Performance metrics
+                        st.markdown("**Today's Performance:**")
+                        orders_handled = len(st.session_state.orders[st.session_state.orders['Assigned Staff'] == staff['Name']])
+                        st.metric("Orders Handled", orders_handled)
         
         st.markdown("---")
         
-        st.subheader("Vacation Calendar & Coverage Planning")
+        st.subheader("Leave Calendar & Coverage Planning")
         
-        vacation_employees = st.session_state.employees[st.session_state.employees['Status'] == 'Vacation']
+        leave_staff = st.session_state.kitchen_staff_details[st.session_state.kitchen_staff_details['Status'] == 'On Leave']
         
-        if len(vacation_employees) > 0:
-            vacation_data = []
-            for _, emp in vacation_employees.iterrows():
-                vacation_data.append({
-                    'Employee': emp['Name'],
-                    'Department': emp['Department'],
-                    'Start': emp['Vacation Start'],
-                    'End': emp['Vacation End'],
-                    'Replacement': emp['Replacement'],
-                    'Days': (pd.to_datetime(emp['Vacation End']) - pd.to_datetime(emp['Vacation Start'])).days
+        if len(leave_staff) > 0:
+            leave_data = []
+            for _, staff in leave_staff.iterrows():
+                leave_data.append({
+                    'Staff Member': staff['Name'],
+                    'Role': staff['Role'],
+                    'Shift': staff['Shift'],
+                    'Leave Start': staff['Leave Start'],
+                    'Leave End': staff['Leave End'],
+                    'Coverage By': staff['Coverage By'],
+                    'Days': (pd.to_datetime(staff['Leave End']) - pd.to_datetime(staff['Leave Start'])).days
                 })
             
-            vacation_df = pd.DataFrame(vacation_data)
-            st.dataframe(vacation_df, use_container_width=True, hide_index=True)
+            leave_df = pd.DataFrame(leave_data)
+            st.dataframe(leave_df, use_container_width=True, hide_index=True)
+            
+            st.markdown("""
+            <div class="alert-box alert-info">
+                <div class="alert-title">COVERAGE STATUS</div>
+                <div>All leave periods have assigned coverage. Kitchen operations maintain full capacity during staff absences.</div>
+            </div>
+            """, unsafe_allow_html=True)
         else:
-            st.info("No employees currently on vacation.")
+            st.success("✅ No staff currently on leave. All kitchen personnel are active.")
+        
+        st.markdown("---")
+        
+        st.subheader("Shift Schedule Overview")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### Morning Shift (7AM - 3PM)")
+            morning_staff = st.session_state.kitchen_staff_details[
+                st.session_state.kitchen_staff_details['Shift'] == 'Morning (7AM-3PM)'
+            ]
+            for _, staff in morning_staff.iterrows():
+                status_icon = "✅" if staff['Status'] == 'Active' else "🔴"
+                st.markdown(f"{status_icon} **{staff['Name']}** - {staff['Role']}")
+        
+        with col2:
+            st.markdown("#### Afternoon Shift (12PM - 8PM)")
+            afternoon_staff = st.session_state.kitchen_staff_details[
+                st.session_state.kitchen_staff_details['Shift'] == 'Afternoon (12PM-8PM)'
+            ]
+            for _, staff in afternoon_staff.iterrows():
+                status_icon = "✅" if staff['Status'] == 'Active' else "🔴"
+                st.markdown(f"{status_icon} **{staff['Name']}** - {staff['Role']}")
     
     # TAB 3: INVENTORY MANAGEMENT
     with tab3:
